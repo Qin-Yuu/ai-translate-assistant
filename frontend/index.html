@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI 翻译助手</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; max-width: 900px; }
+    textarea { width: 100%; min-height: 140px; padding: 12px; font-size: 16px; }
+    button { padding: 10px 16px; font-size: 16px; cursor: pointer; }
+    .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+    .hint { color: #666; font-size: 14px; }
+    .box { border: 1px solid #ddd; padding: 12px; border-radius: 10px; margin-top: 16px; }
+    .kw { display: inline-block; border: 1px solid #ddd; padding: 4px 10px; border-radius: 999px; margin-right: 8px; margin-top: 8px; }
+    input { padding: 8px 10px; width: 320px; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <h1>AI 翻译助手</h1>
+  <p class="hint">输入中文，点击翻译，后端将调用大模型 API 返回英文翻译 + 3 个中文关键词。</p>
+
+  <label class="hint">后端地址（默认 http://localhost:8000 ）</label><br/>
+  <input id="apiBase" value="http://localhost:8000" />
+
+  <div style="margin-top: 12px;">
+    <label class="hint">中文输入</label>
+    <textarea id="input" placeholder="例如：我想做一个AI翻译助手，用于学习英语。"></textarea>
+  </div>
+
+  <div class="row">
+    <button id="btn">翻译</button>
+    <span id="status" class="hint"></span>
+  </div>
+
+  <div class="box">
+    <h3>英文翻译</h3>
+    <pre id="translation" class="hint">（等待翻译结果）</pre>
+
+    <h3>关键词（中文）</h3>
+    <div id="keywords" class="hint">（等待关键词）</div>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  $("btn").addEventListener("click", async () => {
+    const apiBase = $("apiBase").value.replace(/\/+$/, "");
+    const text = $("input").value.trim();
+    $("status").textContent = "";
+    if (!text) {
+      $("status").textContent = "请输入中文内容";
+      return;
+    }
+    $("btn").disabled = true;
+    $("status").textContent = "翻译中…";
+    $("translation").textContent = "";
+    $("keywords").innerHTML = "";
+
+    try {
+      const resp = await fetch(apiBase + "/translate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text})
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || JSON.stringify(data));
+
+      $("translation").textContent = data.translation || "";
+      const kws = (data.keywords || []);
+      $("keywords").innerHTML = kws.map(k => `<span class="kw">${k}</span>`).join("");
+      $("status").textContent = "完成 ✅";
+    } catch (e) {
+      $("status").textContent = "出错：" + e.message;
+      $("translation").textContent = "";
+      $("keywords").textContent = "";
+    } finally {
+      $("btn").disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
