@@ -20,7 +20,7 @@ ai-translate-assistant/
     .env.example
   frontend/
     index.html
-  ai_usage_record_template.md
+  
 ```
 
 ---
@@ -102,13 +102,4 @@ python -m http.server 5173
 2) **LLM 输出不是严格 JSON**
 - 后端做了容错：尝试提取 `Ellipsis` JSON 块并解析；仍失败则返回 raw 文本 + 简单关键词兜底。
 
----
 
-## 提交建议
-
-- 把整个仓库 push 到 GitHub / Gitee
-- 提交时附带：
-  1. 仓库链接
-  2. 运行说明（本 README）
-  3. AI 对话截图/记录（参考 `ai_usage_record_template.md`）
-  4. 开发过程文字说明
