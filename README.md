@@ -20,7 +20,6 @@ ai-translate-assistant/
     .env.example
   frontend/
     index.html
-  ai_usage_record_template.md
 ```
 
 ---
@@ -104,11 +103,3 @@ python -m http.server 5173
 
 ---
 
-## 提交建议
-
-- 把整个仓库 push 到 GitHub / Gitee
-- 提交时附带：
-  1. 仓库链接
-  2. 运行说明（本 README）
-  3. AI 对话截图/记录（参考 `ai_usage_record_template.md`）
-  4. 开发过程文字说明
