@@ -8,8 +8,9 @@ DEFAULT_SYSTEM_PROMPT = """你是一个专业的翻译与信息抽取助手。
 任务：把输入的中文翻译成自然、准确的英文；并从中文原文中提取3个最关键的中文关键词（不是英文）。
 要求：
 - 只输出严格 JSON（不要包含额外文本、不要 markdown）
-- JSON 结构必须为：{"translation": "...", "keywords": ["关键词1","关键词2","关键词3"]}
+- JSON 结构必须为：{"translation": "...", "keywords": ["关键词1","关键词2","关键词3"], "speech_text": "..."}
 - keywords 必须是中文、且正好 3 个；如不足，请用更通用的相关词补足
+- speech_text 用于朗读英文，要求自然口语、句子适中、避免复杂标点
 """
 
 def _fallback_keywords(text: str) -> List[str]:
@@ -99,6 +100,7 @@ def translate_with_llm(text: str) -> Dict[str, Any]:
         obj = _extract_json_object(raw)
         translation = str(obj.get("translation", "")).strip()
         keywords = obj.get("keywords", [])
+        speech_text = str(obj.get("speech_text", "")).strip()
         if not translation:
             raise ValueError("empty translation")
         if not isinstance(keywords, list):
@@ -108,10 +110,13 @@ def translate_with_llm(text: str) -> Dict[str, Any]:
         if len(keywords) < 3:
             keywords = keywords + _fallback_keywords(text)[len(keywords):]
         keywords = keywords[:3]
-        return {"translation": translation, "keywords": keywords}
+        if not speech_text:
+            speech_text = translation
+        return {"translation": translation, "keywords": keywords, "speech_text": speech_text}
     except Exception:
         # best-effort fallback
         return {
             "translation": raw.strip(),
             "keywords": _fallback_keywords(text),
+            "speech_text": raw.strip(),
         }

@@ -7,3 +7,4 @@ class TranslateRequest(BaseModel):
 class TranslateResponse(BaseModel):
     translation: str
     keywords: List[str]
+    speech_text: str
