@@ -14,6 +14,8 @@
     .kw { display: inline-block; border: 1px solid #ddd; padding: 4px 10px; border-radius: 999px; margin-right: 8px; margin-top: 8px; }
     input { padding: 8px 10px; width: 320px; }
     pre { white-space: pre-wrap; word-break: break-word; }
+    select { padding: 8px 10px; }
+    .small { font-size: 13px; color: #666; }
   </style>
 </head>
 <body>
@@ -37,6 +39,23 @@
     <h3>英文翻译</h3>
     <pre id="translation" class="hint">（等待翻译结果）</pre>
 
+    <div class="row" style="margin-top: 10px; flex-wrap: wrap;">
+      <button id="speakBtn" type="button">🔊 朗读英文</button>
+      <button id="stopBtn" type="button">⏹ 停止</button>
+      <label class="small">发音：</label>
+      <select id="voiceSelect"></select>
+      <label class="small">语速：</label>
+      <select id="rateSelect">
+        <option value="0.8">0.8</option>
+        <option value="0.9">0.9</option>
+        <option value="1" selected>1.0</option>
+        <option value="1.1">1.1</option>
+        <option value="1.2">1.2</option>
+      </select>
+      <span id="ttsStatus" class="small"></span>
+    </div>
+    <div id="ttsHint" class="small" style="margin-top: 6px;"></div>
+
     <h3>关键词（中文）</h3>
     <div id="keywords" class="hint">（等待关键词）</div>
   </div>
@@ -44,6 +63,94 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
+  // =============== 浏览器端 TTS（Web Speech API） ===============
+  const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+
+  function setTtsStatus(msg) {
+    $("ttsStatus").textContent = msg || "";
+  }
+
+  function pickEnglishVoices(all) {
+    // 优先选择 en-* 语音
+    const en = all.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
+    return en.length ? en : all;
+  }
+
+  function loadVoices() {
+    if (!ttsSupported) return;
+    const voices = window.speechSynthesis.getVoices() || [];
+    const list = pickEnglishVoices(voices);
+
+    const sel = $("voiceSelect");
+    sel.innerHTML = "";
+
+    if (!list.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "（未检测到语音，稍后再试）";
+      sel.appendChild(opt);
+      return;
+    }
+
+    list.forEach((v, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = `${v.name} (${v.lang})${v.default ? " • default" : ""}`;
+      sel.appendChild(opt);
+    });
+  }
+
+  function speak(text) {
+    if (!ttsSupported) {
+      setTtsStatus("当前浏览器不支持朗读");
+      return;
+    }
+
+    const content = (text || "").trim();
+    if (!content) {
+      setTtsStatus("没有可朗读的英文内容");
+      return;
+    }
+
+    // 清理上一次朗读
+    window.speechSynthesis.cancel();
+
+    const utter = new SpeechSynthesisUtterance(content);
+    utter.lang = "en-US";
+    utter.rate = Number($("rateSelect").value || 1);
+
+    const voices = pickEnglishVoices(window.speechSynthesis.getVoices() || []);
+    const idx = Number($("voiceSelect").value || 0);
+    if (voices[idx]) utter.voice = voices[idx];
+
+    utter.onstart = () => setTtsStatus("朗读中…");
+    utter.onend = () => setTtsStatus("朗读结束 ✅");
+    utter.onerror = (e) => setTtsStatus("朗读失败：" + (e.error || "unknown"));
+
+    window.speechSynthesis.speak(utter);
+  }
+
+  function stopSpeak() {
+    if (!ttsSupported) return;
+    window.speechSynthesis.cancel();
+    setTtsStatus("已停止");
+  }
+
+  // voice 列表在某些浏览器是异步加载的
+  if (ttsSupported) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    $("ttsHint").textContent = "提示：首次使用可能需要等待语音列表加载；朗读按钮必须由用户点击触发。";
+  } else {
+    $("ttsHint").textContent = "你的浏览器不支持 Web Speech 朗读（建议使用最新版 Chrome / Edge）。";
+    $("speakBtn").disabled = true;
+    $("stopBtn").disabled = true;
+  }
+
+  $("speakBtn").addEventListener("click", () => speak($("translation").textContent));
+  $("stopBtn").addEventListener("click", stopSpeak);
+
+  // =============== 翻译请求 ===============
   $("btn").addEventListener("click", async () => {
     const apiBase = $("apiBase").value.replace(/\/+$/, "");
     const text = $("input").value.trim();
@@ -70,6 +177,9 @@
       const kws = (data.keywords || []);
       $("keywords").innerHTML = kws.map(k => `<span class="kw">${k}</span>`).join("");
       $("status").textContent = "完成 ✅";
+
+      // 可选：翻译完成后自动朗读（默认关闭）
+      // speak($("translation").textContent);
     } catch (e) {
       $("status").textContent = "出错：" + e.message;
       $("translation").textContent = "";
@@ -81,3 +191,4 @@
 </script>
 </body>
 </html>
+
