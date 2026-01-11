@@ -3,13 +3,15 @@
 一个面试/学习向的小项目：输入中文，调用 OpenAI 兼容的大模型 API（默认 DeepSeek）完成：
 - 英文翻译 `translation`
 - 抽取 3 个中文关键词 `keywords`
+- 生成英文朗读文本 `speech_text`（用于前端朗读）
 
 ---
 
 ## 功能
 
-- 后端：FastAPI `POST /translate`
+- 后端：FastAPI `POST /translate`，提供 `GET /health`
 - 前端：纯 HTML + 原生 JS（可配置后端地址，带“翻译中…”状态与错误提示）
+- 前端内置 Web Speech API 朗读（可选语音与语速）
 - 支持 DeepSeek / 其他 OpenAI 兼容服务（通过 `.env` 配置）
 
 ---
@@ -23,7 +25,6 @@ ai-translate-assistant/
     llm_client.py
     schemas.py
     requirements.txt
-    .env.example
   frontend/
     index.html
   scripts/
@@ -79,7 +80,7 @@ cp .env.example .env
 
 ```env
 LLM_API_KEY=YOUR_API_KEY_HERE
-LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
 LLM_PROVIDER=deepseek
 ```
@@ -128,6 +129,15 @@ python -m http.server 5173
 
 ## API 使用说明
 
+### GET /health
+
+**Response**
+```json
+{
+  "ok": true
+}
+```
+
 ### POST /translate
 
 **Request**
@@ -141,9 +151,14 @@ python -m http.server 5173
 ```json
 {
   "translation": "English translation result",
-  "keywords": ["关键词1", "关键词2", "关键词3"]
+  "keywords": ["关键词1", "关键词2", "关键词3"],
+  "speech_text": "Text for TTS"
 }
 ```
+
+说明：
+- `speech_text` 默认为更口语化的英文朗读文本，前端朗读使用该字段。
+- `text` 为空或过长会返回 400。
 
 ### curl 测试
 
@@ -155,11 +170,28 @@ curl -X POST "http://127.0.0.1:8000/translate" \
 
 ---
 
+## 配置项（环境变量）
+
+在 `backend/.env` 中可自定义以下参数：
+
+- `LLM_API_KEY`：模型服务 API Key（必填）
+- `LLM_BASE_URL`：OpenAI 兼容 API Base URL
+- `LLM_MODEL`：模型名（如 `deepseek-chat`）
+- `LLM_PROVIDER`：`deepseek` 或 `openai`（影响默认 URL 与模型）
+- `SYSTEM_PROMPT`：自定义系统提示词
+- `MAX_TEXT_CHARS`：请求文本长度限制（默认 5000）
+- `TEMPERATURE`：采样温度（默认 0.2）
+- `MAX_TOKENS`：模型输出 token 上限（默认 400）
+- `HTTP_TIMEOUT`：请求超时（秒，默认 60）
+- `CORS_ALLOW_ORIGINS`：允许跨域的来源列表，逗号分隔（默认 `*`）
+
+---
+
 ## 常见问题（Troubleshooting）
 
 ### 1）前端报错：Failed to fetch / CORS
 - 确认后端已启动，且前端配置的后端地址正确（默认 `http://localhost:8000`）
-- 本项目后端通常会添加 `CORSMiddleware` 方便 demo；若你改过代码导致跨域失败，请在 FastAPI 中开启 CORS。
+- 若跨域失败，请在后端设置 `CORS_ALLOW_ORIGINS`。
 
 ### 2）脚本启动时报 `No module named uvicorn`
 原因：你运行 `python scripts/dev.py` 的 Python 环境没有安装后端依赖。  
@@ -175,5 +207,8 @@ curl -X POST "http://127.0.0.1:8000/translate" \
 python scripts/dev.py --api-port 8001 --web-port 5174
 ```
 
----
+### 5）朗读不可用
+- Web Speech API 依赖浏览器支持，建议使用最新版 Chrome / Edge。
+- 首次打开页面可能需要等待语音列表加载。
 
+---
